@@ -112,7 +112,12 @@ app.delete('/api/notes/:id', async (req, res) => {
   }
 });
 
-// Start Express App
-app.listen(PORT, () => {
-  console.log(`Server is running on http://localhost:${PORT}`);
-});
+// Vercel runs this file as a serverless function, so it needs the Express
+// app exported instead of starting a long-lived listener.
+if (!process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`Server is running on http://localhost:${PORT}`);
+  });
+}
+
+module.exports = app;
