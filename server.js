@@ -41,7 +41,35 @@ async function initDatabase() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
-    console.log('Database initialization complete (notes and chat_messages tables ensured).');
+
+    // Create config table to store app settings (avoids Vercel env-var limits)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS app_config (
+        key VARCHAR(100) PRIMARY KEY,
+        value TEXT NOT NULL,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // Seed default config from env if rows are missing
+    const configRes = await client.query("SELECT COUNT(*)::int AS cnt FROM app_config WHERE key IN ('DEEPSEEK_KEY','DEEPSEEK_MODEL')");
+    if (configRes.rows[0].cnt < 2) {
+      const key = process.env.DEEPSEEK_KEY || '';
+      const model = process.env.DEEPSEEK_MODEL || 'deepseek-chat';
+      if (key) {
+        await client.query(`
+          INSERT INTO app_config (key, value) VALUES ('DEEPSEEK_KEY', $1)
+          ON CONFLICT (key) DO NOTHING;
+        `, [key]);
+      }
+      await client.query(`
+        INSERT INTO app_config (key, value) VALUES ('DEEPSEEK_MODEL', $1)
+        ON CONFLICT (key) DO NOTHING;
+      `, [model]);
+      console.log('App config seeded into database.');
+    }
+
+    console.log('Database initialization complete (notes, chat_messages, and app_config tables ensured).');
     client.release();
   } catch (err) {
     console.error('Error connecting to database or initializing tables:', err.message);
@@ -59,6 +87,12 @@ function ensureDatabase() {
     });
   }
   return databaseReady;
+}
+
+// Read a config value from the database
+async function getConfig(key) {
+  const result = await pool.query('SELECT value FROM app_config WHERE key = $1', [key]);
+  return result.rows[0]?.value || null;
 }
 
 // Middleware
@@ -175,12 +209,12 @@ app.post('/api/chat', async (req, res) => {
 
     const messages = history.map(h => ({ role: h.role, content: h.content }));
 
-    // Call DeepSeek API
-    const deepseekKey = process.env.DEEPSEEK_KEY;
-    const deepseekModel = process.env.DEEPSEEK_MODEL || 'deepseek-chat';
+    // Call DeepSeek API (read config from database instead of env)
+    const deepseekKey = await getConfig('DEEPSEEK_KEY');
+    const deepseekModel = await getConfig('DEEPSEEK_MODEL') || 'deepseek-chat';
 
     if (!deepseekKey) {
-      return res.status(503).json({ error: 'DeepSeek API key not configured. Add DEEPSEEK_KEY to environment variables.' });
+      return res.status(503).json({ error: 'DeepSeek API key not configured. Set it via POST /api/config { "key": "DEEPSEEK_KEY", "value": "sk-..." }.' });
     }
 
     if (typeof fetch === 'undefined') {
@@ -261,6 +295,40 @@ app.post('/api/chat/save-note', async (req, res) => {
   } catch (err) {
     console.error('Error saving chat as note:', err.message);
     res.status(500).json({ error: 'Failed to save chat as note' });
+  }
+});
+
+// CONFIG endpoints (store API keys in database instead of Vercel env vars)
+
+// GET config value
+app.get('/api/config/:key', async (req, res) => {
+  try {
+    await ensureDatabase();
+    const val = await getConfig(req.params.key);
+    if (val === null) return res.status(404).json({ error: 'Config key not found' });
+    res.json({ key: req.params.key, value: val });
+  } catch (err) {
+    console.error('Error reading config:', err.message);
+    res.status(500).json({ error: 'Failed to read config' });
+  }
+});
+
+// POST set config value
+app.post('/api/config', async (req, res) => {
+  const { key, value } = req.body;
+  if (!key || value === undefined) {
+    return res.status(400).json({ error: 'key and value are required' });
+  }
+  try {
+    await ensureDatabase();
+    await pool.query(`
+      INSERT INTO app_config (key, value) VALUES ($1, $2)
+      ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = CURRENT_TIMESTAMP;
+    `, [key, value]);
+    res.json({ message: 'Config saved', key, value });
+  } catch (err) {
+    console.error('Error saving config:', err.message);
+    res.status(500).json({ error: 'Failed to save config' });
   }
 });
 

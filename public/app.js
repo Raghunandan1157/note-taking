@@ -335,8 +335,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnCloseChat = document.getElementById('btn-close-chat');
     const btnClearChat = document.getElementById('btn-clear-chat');
     const btnSaveChat = document.getElementById('btn-save-chat');
+    const chatConfigForm = document.getElementById('chat-config-form');
+    const chatApiKey = document.getElementById('chat-api-key');
 
     let chatHistory = [];
+    let apiKeyConfigured = false;
 
     function toggleChat() {
         chatPanel.classList.toggle('open');
@@ -386,6 +389,48 @@ document.addEventListener('DOMContentLoaded', () => {
         if (el) el.remove();
     }
 
+    async function checkApiKey() {
+        try {
+            const res = await fetch('/api/config/DEEPSEEK_KEY');
+            apiKeyConfigured = res.ok;
+            updateChatInputVisibility();
+        } catch (err) {
+            apiKeyConfigured = false;
+            updateChatInputVisibility();
+        }
+    }
+
+    function updateChatInputVisibility() {
+        if (apiKeyConfigured) {
+            chatConfigForm.style.display = 'none';
+            chatForm.style.display = 'flex';
+        } else {
+            chatConfigForm.style.display = 'block';
+            chatForm.style.display = 'none';
+        }
+    }
+
+    chatConfigForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const key = chatApiKey.value.trim();
+        if (!key) return;
+        try {
+            const res = await fetch('/api/config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ key: 'DEEPSEEK_KEY', value: key })
+            });
+            if (!res.ok) throw new Error('Failed to save API key');
+            chatApiKey.value = '';
+            apiKeyConfigured = true;
+            updateChatInputVisibility();
+            appendChatBubble('assistant', 'API key saved! You can now start chatting.');
+        } catch (err) {
+            console.error('Error saving API key:', err);
+            appendChatBubble('assistant', 'Failed to save API key. Please try again.');
+        }
+    });
+
     async function loadChatHistory() {
         try {
             const res = await fetch('/api/chat/history');
@@ -432,7 +477,13 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (err) {
             removeTypingIndicator();
             console.error('Chat error:', err);
-            appendChatBubble('assistant', `Error: ${err.message}. Check server logs.`);
+            if (err.message.includes('not configured')) {
+                apiKeyConfigured = false;
+                updateChatInputVisibility();
+                appendChatBubble('assistant', 'API key is missing. Paste your DeepSeek key below to continue.');
+            } else {
+                appendChatBubble('assistant', `Error: ${err.message}. Check server logs.`);
+            }
         }
     });
 
@@ -473,6 +524,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Load chat history on page load
+    // Load chat history and check API key status on page load
+    checkApiKey();
     loadChatHistory();
 });

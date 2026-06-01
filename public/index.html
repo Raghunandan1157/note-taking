@@ -199,6 +199,17 @@
                 <p>Ask me anything. I will help you and you can save our conversation as a note.</p>
             </div>
         </div>
+
+        <!-- Config form (appears when API key is missing) -->
+        <form id="chat-config-form" class="chat-config-row" style="display:none;">
+            <div class="chat-config-inner">
+                <label>DeepSeek API Key</label>
+                <input type="password" id="chat-api-key" placeholder="sk-..." autocomplete="off">
+                <button type="submit" class="chat-send-btn" title="Save API Key">
+                    <i class="fa-solid fa-check"></i>
+                </button>
+            </div>
+        </form>
         <form id="chat-form" class="chat-input-row">
             <input type="text" id="chat-input" placeholder="Type your message..." autocomplete="off">
             <button type="submit" class="chat-send-btn">

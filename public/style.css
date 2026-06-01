@@ -965,6 +965,44 @@ button {
     transform: scale(1.05);
 }
 
+/* Chat config row (API key input) */
+.chat-config-row {
+    padding: 12px;
+    border-top: 1px solid var(--border);
+    background: var(--surface-muted);
+}
+
+.chat-config-inner {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.chat-config-inner label {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.chat-config-inner input {
+    flex: 1;
+    min-height: 36px;
+    padding: 0 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    outline: none;
+    background: #fff;
+    color: var(--text);
+    font-size: 0.9rem;
+    transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+.chat-config-inner input:focus {
+    border-color: rgba(15, 118, 110, 0.45);
+    box-shadow: 0 0 0 4px rgba(15, 118, 110, 0.1);
+}
+
 /* Typing indicator */
 .typing-indicator .chat-bubble-inner {
     display: flex;
