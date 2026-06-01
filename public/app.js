@@ -325,4 +325,151 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Start background polling loop for real-time DB synchronization (every 3 seconds)
     setInterval(fetchNotes, 3000);
+
+    // ---------- Chatbot ----------
+    const chatToggle = document.getElementById('chat-toggle');
+    const chatPanel = document.getElementById('chat-panel');
+    const chatMessages = document.getElementById('chat-messages');
+    const chatForm = document.getElementById('chat-form');
+    const chatInput = document.getElementById('chat-input');
+    const btnCloseChat = document.getElementById('btn-close-chat');
+    const btnClearChat = document.getElementById('btn-clear-chat');
+    const btnSaveChat = document.getElementById('btn-save-chat');
+
+    let chatHistory = [];
+
+    function toggleChat() {
+        chatPanel.classList.toggle('open');
+        chatToggle.classList.toggle('hidden');
+        if (chatPanel.classList.contains('open')) {
+            chatInput.focus();
+            scrollChatToBottom();
+        }
+    }
+
+    chatToggle.addEventListener('click', toggleChat);
+    btnCloseChat.addEventListener('click', toggleChat);
+
+    function scrollChatToBottom() {
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    function appendChatBubble(role, text) {
+        const div = document.createElement('div');
+        div.className = `chat-bubble ${role}`;
+        const safeText = escapeHTML(text).replace(/\n/g, '<br>');
+        div.innerHTML = `
+            <div class="chat-bubble-inner">${safeText}</div>
+            <span class="chat-time">${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+        `;
+        chatMessages.appendChild(div);
+        scrollChatToBottom();
+    }
+
+    function appendTypingIndicator() {
+        const div = document.createElement('div');
+        div.className = 'chat-bubble assistant typing-indicator';
+        div.id = 'typing-indicator';
+        div.innerHTML = `
+            <div class="chat-bubble-inner">
+                <span class="dot"></span>
+                <span class="dot"></span>
+                <span class="dot"></span>
+            </div>
+        `;
+        chatMessages.appendChild(div);
+        scrollChatToBottom();
+    }
+
+    function removeTypingIndicator() {
+        const el = document.getElementById('typing-indicator');
+        if (el) el.remove();
+    }
+
+    async function loadChatHistory() {
+        try {
+            const res = await fetch('/api/chat/history');
+            if (!res.ok) throw new Error('Failed to load chat history');
+            chatHistory = await res.json();
+            chatMessages.innerHTML = '';
+            if (chatHistory.length === 0) {
+                chatMessages.innerHTML = `
+                    <div class="chat-welcome">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i>
+                        <p>Ask me anything. I will help you and you can save our conversation as a note.</p>
+                    </div>
+                `;
+            } else {
+                chatHistory.forEach(m => appendChatBubble(m.role, m.content));
+            }
+        } catch (err) {
+            console.error('Error loading chat history:', err);
+        }
+    }
+
+    chatForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const text = chatInput.value.trim();
+        if (!text) return;
+
+        appendChatBubble('user', text);
+        chatInput.value = '';
+        appendTypingIndicator();
+
+        try {
+            const res = await fetch('/api/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: text })
+            });
+            removeTypingIndicator();
+            if (!res.ok) throw new Error('Chat request failed');
+            const data = await res.json();
+            appendChatBubble('assistant', data.content);
+        } catch (err) {
+            removeTypingIndicator();
+            console.error('Chat error:', err);
+            appendChatBubble('assistant', 'Sorry, I encountered an error. Please try again.');
+        }
+    });
+
+    btnClearChat.addEventListener('click', async () => {
+        if (!confirm('Clear all chat history?')) return;
+        try {
+            const res = await fetch('/api/chat/clear', { method: 'DELETE' });
+            if (!res.ok) throw new Error('Failed to clear chat');
+            chatMessages.innerHTML = `
+                <div class="chat-welcome">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i>
+                    <p>Ask me anything. I will help you and you can save our conversation as a note.</p>
+                </div>
+            `;
+        } catch (err) {
+            console.error('Error clearing chat:', err);
+            alert('Failed to clear chat history.');
+        }
+    });
+
+    btnSaveChat.addEventListener('click', async () => {
+        const title = prompt('Enter a title for this chat note:', 'Chat Summary');
+        if (title === null) return;
+        try {
+            const res = await fetch('/api/chat/save-note', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title })
+            });
+            if (!res.ok) throw new Error('Failed to save chat as note');
+            const note = await res.json();
+            allNotes.unshift(note);
+            filterNotes();
+            alert('Chat saved as a note!');
+        } catch (err) {
+            console.error('Error saving chat:', err);
+            alert('Failed to save chat as note.');
+        }
+    });
+
+    // Load chat history on page load
+    loadChatHistory();
 });
