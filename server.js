@@ -214,8 +214,8 @@ app.post('/api/chat', async (req, res) => {
 
     res.json({ role: 'assistant', content: aiContent });
   } catch (err) {
-    console.error('Error in chat:', err.message);
-    res.status(500).json({ error: 'Failed to process chat message' });
+    console.error('Error in chat:', err);
+    res.status(500).json({ error: 'Failed to process chat message', detail: err.message });
   }
 });
 
