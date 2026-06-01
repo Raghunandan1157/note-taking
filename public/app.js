@@ -124,16 +124,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const newNote = await res.json();
             allNotes.unshift(newNote); // Add to the beginning of the local cache
             
-            // Reset fields
-            noteTitle.value = '';
-            noteContent.value = '';
-            
-            // Reset checked color to slate (first option)
-            const defaultColorInput = document.querySelector('input[name="note-color"][value="#1e293b"]');
-            if (defaultColorInput) defaultColorInput.checked = true;
-
-            // Trigger search filter refresh
-            filterNotes();
+            // Automatically reload the page on saving new note
+            location.reload();
         } catch (err) {
             console.error('Error creating note:', err);
             alert('Failed to save note. Please check server connection.');
@@ -223,12 +215,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const updatedNote = await res.json();
             
-            // Update local state array
-            allNotes = allNotes.map(note => note.id === updatedNote.id ? updatedNote : note);
-            
-            // Close modal and refresh UI
-            closeEditModal();
-            filterNotes();
+            // Automatically reload the page on saving changes
+            location.reload();
 
         } catch (err) {
             console.error('Error updating note:', err);
