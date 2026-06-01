@@ -201,13 +201,41 @@ app.post('/api/chat', async (req, res) => {
       ['user', message.trim()]
     );
 
+    // Fetch the user's notes from the database so the assistant can answer
+    // questions about them (e.g. "what was I doing today?").
+    const notesResult = await pool.query(
+      'SELECT title, content, created_at FROM notes ORDER BY created_at DESC LIMIT 100'
+    );
+    const notesContext = notesResult.rows.length
+      ? notesResult.rows
+          .map((n, i) => {
+            const date = new Date(n.created_at).toISOString().slice(0, 10);
+            const body = (n.content || '').slice(0, 1000);
+            return `Note ${i + 1} [${date}] "${n.title}": ${body}`;
+          })
+          .join('\n\n')
+      : 'The user has no notes yet.';
+
+    const today = new Date().toISOString().slice(0, 10);
+    const systemMessage = {
+      role: 'system',
+      content:
+        `You are a helpful AI assistant built into the user's personal note-taking app. ` +
+        `You can read the user's saved notes, which are provided below, and you should use them to answer ` +
+        `questions about what they have written, their tasks, and what they have been working on ` +
+        `(e.g. "what was I doing today?"). When relevant, reference note titles and dates. ` +
+        `If a question is unrelated to their notes, just answer it normally. ` +
+        `Today's date is ${today}.\n\n` +
+        `=== USER'S NOTES ===\n${notesContext}`
+    };
+
     // Fetch recent history for context (last 20 messages)
     const historyResult = await pool.query(
       'SELECT role, content FROM chat_messages ORDER BY created_at DESC LIMIT 20'
     );
     const history = historyResult.rows.reverse();
 
-    const messages = history.map(h => ({ role: h.role, content: h.content }));
+    const messages = [systemMessage, ...history.map(h => ({ role: h.role, content: h.content }))];
 
     // Call DeepSeek API (read config from database instead of env)
     const deepseekKey = await getConfig('DEEPSEEK_KEY');
