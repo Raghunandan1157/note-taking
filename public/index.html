@@ -103,6 +103,64 @@
         </main>
     </div>
 
+    <!-- Edit Note Modal -->
+    <div id="edit-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Edit Note</h2>
+                <button type="button" class="btn-close-modal" id="btn-close-modal">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <form id="edit-form">
+                <input type="hidden" id="edit-note-id">
+                <div class="form-group">
+                    <label for="edit-title">Title</label>
+                    <input type="text" id="edit-title" required autocomplete="off">
+                </div>
+                <div class="form-group">
+                    <label for="edit-content">Content</label>
+                    <textarea id="edit-content" rows="4" placeholder="Update note description..."></textarea>
+                </div>
+                
+                <div class="form-group color-group">
+                    <label>Card Color</label>
+                    <div class="color-palette edit-palette">
+                        <label class="color-option" style="--color: #1e293b;" title="Slate">
+                            <input type="radio" name="edit-note-color" value="#1e293b">
+                            <span class="color-indicator"></span>
+                        </label>
+                        <label class="color-option" style="--color: #075e54;" title="Emerald">
+                            <input type="radio" name="edit-note-color" value="#075e54">
+                            <span class="color-indicator"></span>
+                        </label>
+                        <label class="color-option" style="--color: #0284c7;" title="Ocean">
+                            <input type="radio" name="edit-note-color" value="#0284c7">
+                            <span class="color-indicator"></span>
+                        </label>
+                        <label class="color-option" style="--color: #7c3aed;" title="Amethyst">
+                            <input type="radio" name="edit-note-color" value="#7c3aed">
+                            <span class="color-indicator"></span>
+                        </label>
+                        <label class="color-option" style="--color: #b91c1c;" title="Ruby">
+                            <input type="radio" name="edit-note-color" value="#b91c1c">
+                            <span class="color-indicator"></span>
+                        </label>
+                        <label class="color-option" style="--color: #b45309;" title="Amber">
+                            <input type="radio" name="edit-note-color" value="#b45309">
+                            <span class="color-indicator"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn-cancel" id="btn-cancel-edit">Cancel</button>
+                    <button type="submit" class="btn-save-edit">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Script file -->
     <script src="app.js"></script>
 </body>

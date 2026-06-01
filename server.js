@@ -75,6 +75,28 @@ app.post('/api/notes', async (req, res) => {
   }
 });
 
+// PUT (update) an existing note
+app.put('/api/notes/:id', async (req, res) => {
+  const { id } = req.params;
+  const { title, content, color } = req.body;
+  if (!title) {
+    return res.status(400).json({ error: 'Title is required' });
+  }
+
+  try {
+    const query = 'UPDATE notes SET title = $1, content = $2, color = $3 WHERE id = $4 RETURNING *';
+    const values = [title, content || '', color || '#2c3e50', id];
+    const result = await pool.query(query, values);
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Note not found' });
+    }
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Error updating note:', err.message);
+    res.status(500).json({ error: 'Failed to update note' });
+  }
+});
+
 // DELETE a note
 app.delete('/api/notes/:id', async (req, res) => {
   const { id } = req.params;

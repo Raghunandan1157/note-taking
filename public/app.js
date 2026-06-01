@@ -1,4 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // Form & Input Elements
     const noteForm = document.getElementById('note-form');
     const noteTitle = document.getElementById('note-title');
     const noteContent = document.getElementById('note-content');
@@ -6,6 +7,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const searchInput = document.getElementById('search-input');
     const totalNotesCount = document.getElementById('total-notes-count');
     const emptyState = document.getElementById('empty-state');
+
+    // Edit Modal Elements
+    const editModal = document.getElementById('edit-modal');
+    const editForm = document.getElementById('edit-form');
+    const editNoteId = document.getElementById('edit-note-id');
+    const editTitle = document.getElementById('edit-title');
+    const editContent = document.getElementById('edit-content');
+    const btnCloseModal = document.getElementById('btn-close-modal');
+    const btnCancelEdit = document.getElementById('btn-cancel-edit');
 
     let allNotes = [];
 
@@ -58,9 +68,14 @@ document.addEventListener('DOMContentLoaded', () => {
             noteCard.innerHTML = `
                 <div class="note-header">
                     <h3 class="note-title">${escapeHTML(note.title)}</h3>
-                    <button class="btn-delete" title="Delete note">
-                        <i class="fa-regular fa-trash-can"></i>
-                    </button>
+                    <div class="note-actions">
+                        <button class="btn-edit" title="Edit note">
+                            <i class="fa-regular fa-pen-to-square"></i>
+                        </button>
+                        <button class="btn-delete" title="Delete note">
+                            <i class="fa-regular fa-trash-can"></i>
+                        </button>
+                    </div>
                 </div>
                 <p class="note-body">${escapeHTML(note.content || '')}</p>
                 <div class="note-footer">
@@ -69,6 +84,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     </span>
                 </div>
             `;
+
+            // Edit event handler
+            const editBtn = noteCard.querySelector('.btn-edit');
+            editBtn.addEventListener('click', () => openEditModal(note));
 
             // Delete event handler
             const deleteBtn = noteCard.querySelector('.btn-delete');
@@ -113,7 +132,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const defaultColorInput = document.querySelector('input[name="note-color"][value="#1e293b"]');
             if (defaultColorInput) defaultColorInput.checked = true;
 
-            // Trigger search filter refresh or simple re-render
+            // Trigger search filter refresh
             filterNotes();
         } catch (err) {
             console.error('Error creating note:', err);
@@ -146,6 +165,76 @@ document.addEventListener('DOMContentLoaded', () => {
             alert('Failed to delete note.');
         }
     }
+
+    // --- Edit Modal Handlers ---
+
+    function openEditModal(note) {
+        editNoteId.value = note.id;
+        editTitle.value = note.title;
+        editContent.value = note.content || '';
+
+        // Select correct color input in edit modal palette
+        const targetColorInput = document.querySelector(`input[name="edit-note-color"][value="${note.color || '#1e293b'}"]`);
+        if (targetColorInput) {
+            targetColorInput.checked = true;
+        } else {
+            const defaultColorInput = document.querySelector('input[name="edit-note-color"][value="#1e293b"]');
+            if (defaultColorInput) defaultColorInput.checked = true;
+        }
+
+        // Show modal
+        editModal.classList.add('active');
+    }
+
+    function closeEditModal() {
+        editModal.classList.remove('active');
+    }
+
+    // Event listeners to close modal
+    btnCloseModal.addEventListener('click', closeEditModal);
+    btnCancelEdit.addEventListener('click', closeEditModal);
+    editModal.addEventListener('click', (e) => {
+        if (e.target === editModal) closeEditModal();
+    });
+
+    // Handle Edit Form Submission
+    editForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const id = editNoteId.value;
+        const title = editTitle.value.trim();
+        const content = editContent.value.trim();
+        
+        const checkedColorInput = document.querySelector('input[name="edit-note-color"]:checked');
+        const color = checkedColorInput ? checkedColorInput.value : '#1e293b';
+
+        if (!title) return;
+
+        try {
+            const res = await fetch(`/api/notes/${id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ title, content, color })
+            });
+
+            if (!res.ok) throw new Error('Failed to update note');
+
+            const updatedNote = await res.json();
+            
+            // Update local state array
+            allNotes = allNotes.map(note => note.id === updatedNote.id ? updatedNote : note);
+            
+            // Close modal and refresh UI
+            closeEditModal();
+            filterNotes();
+
+        } catch (err) {
+            console.error('Error updating note:', err);
+            alert('Failed to update note. Please try again.');
+        }
+    });
 
     // Real-time search filter
     function filterNotes() {
