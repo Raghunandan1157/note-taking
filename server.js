@@ -34,11 +34,21 @@ async function initDatabase() {
     client.release();
   } catch (err) {
     console.error('Error connecting to database or initializing tables:', err.message);
-    process.exit(1);
+    throw err;
   }
 }
 
-initDatabase();
+let databaseReady = null;
+
+function ensureDatabase() {
+  if (!databaseReady) {
+    databaseReady = initDatabase().catch((err) => {
+      databaseReady = null;
+      throw err;
+    });
+  }
+  return databaseReady;
+}
 
 // Middleware
 app.use(express.json());
@@ -49,6 +59,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 // GET all notes
 app.get('/api/notes', async (req, res) => {
   try {
+    await ensureDatabase();
     const result = await pool.query('SELECT * FROM notes ORDER BY created_at DESC');
     res.json(result.rows);
   } catch (err) {
@@ -65,6 +76,7 @@ app.post('/api/notes', async (req, res) => {
   }
 
   try {
+    await ensureDatabase();
     const query = 'INSERT INTO notes (title, content, color) VALUES ($1, $2, $3) RETURNING *';
     const values = [title, content || '', color || '#2c3e50'];
     const result = await pool.query(query, values);
@@ -84,6 +96,7 @@ app.put('/api/notes/:id', async (req, res) => {
   }
 
   try {
+    await ensureDatabase();
     const query = 'UPDATE notes SET title = $1, content = $2, color = $3 WHERE id = $4 RETURNING *';
     const values = [title, content || '', color || '#2c3e50', id];
     const result = await pool.query(query, values);
@@ -101,6 +114,7 @@ app.put('/api/notes/:id', async (req, res) => {
 app.delete('/api/notes/:id', async (req, res) => {
   const { id } = req.params;
   try {
+    await ensureDatabase();
     const result = await pool.query('DELETE FROM notes WHERE id = $1 RETURNING *', [id]);
     if (result.rowCount === 0) {
       return res.status(404).json({ error: 'Note not found' });
@@ -115,6 +129,8 @@ app.delete('/api/notes/:id', async (req, res) => {
 // Vercel runs this file as a serverless function, so it needs the Express
 // app exported instead of starting a long-lived listener.
 if (!process.env.VERCEL) {
+  ensureDatabase().catch(() => process.exit(1));
+
   app.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);
   });
