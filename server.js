@@ -180,7 +180,11 @@ app.post('/api/chat', async (req, res) => {
     const deepseekModel = process.env.DEEPSEEK_MODEL || 'deepseek-chat';
 
     if (!deepseekKey) {
-      return res.status(500).json({ error: 'DeepSeek API key not configured' });
+      return res.status(503).json({ error: 'DeepSeek API key not configured. Add DEEPSEEK_KEY to environment variables.' });
+    }
+
+    if (typeof fetch === 'undefined') {
+      return res.status(500).json({ error: 'fetch is not available. Node >=18 required.' });
     }
 
     const response = await fetch('https://api.deepseek.com/chat/completions', {

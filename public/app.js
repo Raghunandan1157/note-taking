@@ -423,13 +423,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: JSON.stringify({ message: text })
             });
             removeTypingIndicator();
-            if (!res.ok) throw new Error('Chat request failed');
+            if (!res.ok) {
+                const errorData = await res.json().catch(() => ({ error: 'Unknown server error' }));
+                throw new Error(errorData.error || `Server error: ${res.status}`);
+            }
             const data = await res.json();
             appendChatBubble('assistant', data.content);
         } catch (err) {
             removeTypingIndicator();
             console.error('Chat error:', err);
-            appendChatBubble('assistant', 'Sorry, I encountered an error. Please try again.');
+            appendChatBubble('assistant', `Error: ${err.message}. Check server logs.`);
         }
     });
 
