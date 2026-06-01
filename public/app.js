@@ -19,8 +19,92 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnCloseModal = document.getElementById('btn-close-modal');
     const btnCancelEdit = document.getElementById('btn-cancel-edit');
 
+    // Toast & Dialog Elements
+    const toastEl = document.getElementById('toast');
+    const confirmModal = document.getElementById('confirm-modal');
+    const confirmMessage = document.getElementById('confirm-message');
+    const confirmOk = document.getElementById('confirm-ok');
+    const confirmCancel = document.getElementById('confirm-cancel');
+    const promptModal = document.getElementById('prompt-modal');
+    const promptMessage = document.getElementById('prompt-message');
+    const promptInput = document.getElementById('prompt-input');
+    const promptOk = document.getElementById('prompt-ok');
+    const promptCancel = document.getElementById('prompt-cancel');
+
     let allNotes = [];
     let isFirstLoad = true;
+
+    // Toast notification helper
+    function showToast(message, type = 'success') {
+        toastEl.textContent = message;
+        toastEl.className = `toast show ${type}`;
+        setTimeout(() => {
+            toastEl.classList.remove('show');
+        }, 4000);
+    }
+
+    // Confirm dialog helper (returns promise)
+    function showConfirm(message) {
+        return new Promise((resolve) => {
+            confirmMessage.textContent = message;
+            confirmModal.style.display = 'flex';
+
+            const cleanup = () => {
+                confirmModal.style.display = 'none';
+                confirmOk.removeEventListener('click', handleOk);
+                confirmCancel.removeEventListener('click', handleCancel);
+            };
+
+            const handleOk = () => {
+                cleanup();
+                resolve(true);
+            };
+
+            const handleCancel = () => {
+                cleanup();
+                resolve(false);
+            };
+
+            confirmOk.addEventListener('click', handleOk);
+            confirmCancel.addEventListener('click', handleCancel);
+        });
+    }
+
+    // Prompt dialog helper (returns promise)
+    function showPrompt(message, defaultValue = '') {
+        return new Promise((resolve) => {
+            promptMessage.textContent = message;
+            promptInput.value = defaultValue;
+            promptModal.style.display = 'flex';
+            promptInput.focus();
+
+            const cleanup = () => {
+                promptModal.style.display = 'none';
+                promptOk.removeEventListener('click', handleOk);
+                promptCancel.removeEventListener('click', handleCancel);
+                promptInput.removeEventListener('keypress', handleEnter);
+            };
+
+            const handleOk = () => {
+                const value = promptInput.value.trim();
+                cleanup();
+                resolve(value || null);
+            };
+
+            const handleCancel = () => {
+                cleanup();
+                resolve(null);
+            };
+
+            const handleEnter = (e) => {
+                if (e.key === 'Enter') handleOk();
+            };
+
+            promptOk.addEventListener('click', handleOk);
+            promptCancel.addEventListener('click', handleCancel);
+            promptInput.addEventListener('keypress', handleEnter);
+        });
+    }
 
     // Fetch and display notes (used for initial load and real-time polling)
     async function fetchNotes() {
@@ -84,6 +168,7 @@ document.addEventListener('DOMContentLoaded', () => {
             noteCard.setAttribute('data-id', note.id);
 
             const formattedDate = formatDate(note.created_at);
+            const isEdited = note.updated_at && new Date(note.updated_at) > new Date(note.created_at);
 
             noteCard.innerHTML = `
                 <div class="note-header">
@@ -102,6 +187,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <span class="note-date">
                         <i class="fa-regular fa-calendar"></i> ${formattedDate}
                     </span>
+                    ${isEdited ? '<span class="note-edited-badge">Edited</span>' : ''}
                 </div>
             `;
 
@@ -156,13 +242,14 @@ document.addEventListener('DOMContentLoaded', () => {
             filterNotes();
         } catch (err) {
             console.error('Error creating note:', err);
-            alert('Failed to save note. Please check server connection.');
+            showToast('Failed to save note. Please check server connection.', 'error');
         }
     });
 
     // Delete note
     async function deleteNote(id, noteCard) {
-        if (!confirm('Are you sure you want to delete this note?')) return;
+        const confirmed = await showConfirm('Are you sure you want to delete this note?');
+        if (!confirmed) return;
 
         try {
             const res = await fetch(`/api/notes/${id}`, {
@@ -174,7 +261,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Apply exit animation and remove from DOM
             noteCard.style.opacity = '0';
             noteCard.style.transform = 'scale(0.9)';
-            
+
             setTimeout(() => {
                 allNotes = allNotes.filter(note => note.id !== id);
                 filterNotes();
@@ -182,7 +269,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         } catch (err) {
             console.error('Error deleting note:', err);
-            alert('Failed to delete note.');
+            showToast('Failed to delete note.', 'error');
         }
     }
 
@@ -252,7 +339,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         } catch (err) {
             console.error('Error updating note:', err);
-            alert('Failed to update note. Please try again.');
+            showToast('Failed to update note. Please try again.', 'error');
         }
     });
 
@@ -499,7 +586,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     btnClearChat.addEventListener('click', async () => {
-        if (!confirm('Clear all chat history?')) return;
+        const confirmed = await showConfirm('Clear all chat history?');
+        if (!confirmed) return;
         try {
             const res = await fetch('/api/chat/clear', { method: 'DELETE' });
             if (!res.ok) throw new Error('Failed to clear chat');
@@ -511,13 +599,13 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
         } catch (err) {
             console.error('Error clearing chat:', err);
-            alert('Failed to clear chat history.');
+            showToast('Failed to clear chat history.', 'error');
         }
     });
 
     btnSaveChat.addEventListener('click', async () => {
-        const title = prompt('Enter a title for this chat note:', 'Chat Summary');
-        if (title === null) return;
+        const title = await showPrompt('Enter a title for this chat note:', 'Chat Summary');
+        if (!title) return;
         try {
             const res = await fetch('/api/chat/save-note', {
                 method: 'POST',
@@ -528,10 +616,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const note = await res.json();
             allNotes.unshift(note);
             filterNotes();
-            alert('Chat saved as a note!');
+            showToast('Chat saved as a note!', 'success');
         } catch (err) {
             console.error('Error saving chat:', err);
-            alert('Failed to save chat as note.');
+            showToast('Failed to save chat as note.', 'error');
         }
     });
 

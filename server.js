@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const { Pool } = require('pg');
 const path = require('path');
+const rateLimit = require('express-rate-limit');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -28,8 +29,14 @@ async function initDatabase() {
         title VARCHAR(255) NOT NULL,
         content TEXT,
         color VARCHAR(50) DEFAULT '#2c3e50',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+    `);
+
+    // Add updated_at column if it doesn't exist (migration)
+    await client.query(`
+      ALTER TABLE notes ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
     `);
 
     // Create chat_messages table for chatbot history
@@ -99,6 +106,15 @@ async function getConfig(key) {
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Rate limiting for chat endpoint to protect against API credit draining
+const chatLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 20, // 20 requests per window
+  message: 'Too many chat requests, please try again later',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 // REST API Endpoints
 
 // GET all notes
@@ -142,7 +158,7 @@ app.put('/api/notes/:id', async (req, res) => {
 
   try {
     await ensureDatabase();
-    const query = 'UPDATE notes SET title = $1, content = $2, color = $3 WHERE id = $4 RETURNING *';
+    const query = 'UPDATE notes SET title = $1, content = $2, color = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $4 RETURNING *';
     const values = [title, content || '', color || '#2c3e50', id];
     const result = await pool.query(query, values);
     if (result.rowCount === 0) {
@@ -186,7 +202,7 @@ app.get('/api/chat/history', async (req, res) => {
 });
 
 // POST chat message (calls DeepSeek and saves exchange)
-app.post('/api/chat', async (req, res) => {
+app.post('/api/chat', chatLimiter, async (req, res) => {
   const { message } = req.body;
   if (!message || !message.trim()) {
     return res.status(400).json({ error: 'Message is required' });
@@ -328,13 +344,13 @@ app.post('/api/chat/save-note', async (req, res) => {
 
 // CONFIG endpoints (store API keys in database instead of Vercel env vars)
 
-// GET config value
+// GET config value (returns existence, not the value for security)
 app.get('/api/config/:key', async (req, res) => {
   try {
     await ensureDatabase();
     const val = await getConfig(req.params.key);
     if (val === null) return res.status(404).json({ error: 'Config key not found' });
-    res.json({ key: req.params.key, value: val });
+    res.json({ key: req.params.key, exists: true });
   } catch (err) {
     console.error('Error reading config:', err.message);
     res.status(500).json({ error: 'Failed to read config' });

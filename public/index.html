@@ -232,6 +232,32 @@
         <i class="fa-solid fa-robot"></i>
     </button>
 
+    <!-- Toast Notification -->
+    <div id="toast" class="toast"></div>
+
+    <!-- Confirm Dialog Modal -->
+    <div id="confirm-modal" class="modal-overlay confirm-overlay" style="display: none;">
+        <div class="modal-content confirm-modal-content">
+            <p id="confirm-message"></p>
+            <div class="modal-actions">
+                <button id="confirm-cancel" class="btn-cancel">Cancel</button>
+                <button id="confirm-ok" class="btn-danger">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Prompt Dialog Modal -->
+    <div id="prompt-modal" class="modal-overlay prompt-overlay" style="display: none;">
+        <div class="modal-content prompt-modal-content">
+            <p id="prompt-message"></p>
+            <input type="text" id="prompt-input" placeholder="Enter value..." autocomplete="off">
+            <div class="modal-actions">
+                <button id="prompt-cancel" class="btn-cancel">Cancel</button>
+                <button id="prompt-ok" class="btn-save-edit">OK</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Script file -->
     <script src="app.js"></script>
 </body>

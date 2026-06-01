@@ -574,6 +574,16 @@ button {
     gap: 6px;
 }
 
+.note-edited-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    background: var(--accent-soft);
+    color: var(--accent-strong);
+    font-size: 0.7rem;
+    font-weight: 500;
+    border-radius: 999px;
+}
+
 .empty-state {
     grid-column: 1 / -1;
     display: flex;
@@ -646,6 +656,81 @@ button {
 
 .modal-overlay.active .modal-content {
     transform: translateY(0);
+}
+
+/* Toast Notifications */
+.toast {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 999;
+    padding: 16px 20px;
+    min-width: 320px;
+    border-radius: var(--radius);
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-md);
+    opacity: 0;
+    transform: translateX(400px);
+    transition: opacity var(--transition), transform var(--transition);
+    pointer-events: none;
+    font-size: 0.95rem;
+}
+
+.toast.show {
+    opacity: 1;
+    transform: translateX(0);
+    pointer-events: auto;
+}
+
+.toast.success {
+    border-color: var(--accent);
+    border-left: 3px solid var(--accent);
+}
+
+.toast.error {
+    border-color: var(--danger);
+    border-left: 3px solid var(--danger);
+}
+
+/* Confirm/Prompt Modals */
+.confirm-modal-content,
+.prompt-modal-content {
+    width: min(100%, 380px);
+    padding: 28px;
+}
+
+.confirm-modal-content p,
+.prompt-modal-content p {
+    margin-bottom: 20px;
+    color: var(--text);
+    font-size: 1rem;
+    line-height: 1.5;
+}
+
+.prompt-modal-content input {
+    width: 100%;
+    margin-bottom: 20px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 0.95rem;
+    outline: none;
+    transition: border-color var(--transition);
+}
+
+.prompt-modal-content input:focus {
+    border-color: var(--accent);
+}
+
+.btn-danger {
+    background: var(--danger);
+    color: white;
+}
+
+.btn-danger:hover {
+    background: #b91c1c;
 }
 
 .modal-header {
