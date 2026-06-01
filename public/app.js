@@ -33,6 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let allNotes = [];
     let isFirstLoad = true;
+    let currentColorFilter = 'all';
 
     // Toast notification helper
     function showToast(message, type = 'success') {
@@ -174,10 +175,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="note-header">
                     <h3 class="note-title">${escapeHTML(note.title)}</h3>
                     <div class="note-actions">
-                        <button class="btn-edit" title="Edit note">
+                        <button class="btn-edit" title="Edit note" aria-label="Edit note">
                             <i class="fa-regular fa-pen-to-square"></i>
                         </button>
-                        <button class="btn-delete" title="Delete note">
+                        <button class="btn-delete" title="Delete note" aria-label="Delete note">
                             <i class="fa-regular fa-trash-can"></i>
                         </button>
                     </div>
@@ -275,6 +276,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Edit Modal Handlers ---
 
+    let previouslyFocusedElement = null;
+
     function openEditModal(note) {
         editNoteId.value = note.id;
         editTitle.value = note.title;
@@ -289,12 +292,17 @@ document.addEventListener('DOMContentLoaded', () => {
             if (defaultColorInput) defaultColorInput.checked = true;
         }
 
-        // Show modal
+        // Show modal and move focus to first input
         editModal.classList.add('active');
+        previouslyFocusedElement = document.activeElement;
+        editTitle.focus();
     }
 
     function closeEditModal() {
         editModal.classList.remove('active');
+        if (previouslyFocusedElement) {
+            previouslyFocusedElement.focus();
+        }
     }
 
     // Event listeners to close modal
@@ -302,6 +310,44 @@ document.addEventListener('DOMContentLoaded', () => {
     btnCancelEdit.addEventListener('click', closeEditModal);
     editModal.addEventListener('click', (e) => {
         if (e.target === editModal) closeEditModal();
+    });
+
+    // Escape key handler for edit modal
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && editModal.classList.contains('active')) {
+            closeEditModal();
+        }
+    });
+
+    // Focus trap for edit modal - get all focusable elements within the modal
+    function getModalFocusableElements() {
+        const focusableElements = editModal.querySelectorAll(
+            'input, textarea, button, [tabindex]:not([tabindex="-1"])'
+        );
+        return Array.from(focusableElements);
+    }
+
+    // Tab key handler for focus trap in edit modal
+    editModal.addEventListener('keydown', (e) => {
+        if (e.key === 'Tab' && editModal.classList.contains('active')) {
+            const focusableElements = getModalFocusableElements();
+            if (focusableElements.length === 0) return;
+
+            const activeElement = document.activeElement;
+            const firstElement = focusableElements[0];
+            const lastElement = focusableElements[focusableElements.length - 1];
+
+            // Shift+Tab on first element - focus last
+            if (e.shiftKey && activeElement === firstElement) {
+                e.preventDefault();
+                lastElement.focus();
+            }
+            // Tab on last element - focus first
+            else if (!e.shiftKey && activeElement === lastElement) {
+                e.preventDefault();
+                firstElement.focus();
+            }
+        }
     });
 
     // Handle Edit Form Submission
@@ -343,25 +389,48 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Real-time search filter
+    // Real-time search filter with color filter
     function filterNotes() {
         const query = searchInput.value.toLowerCase().trim();
-        
-        if (!query) {
-            renderNotes(allNotes);
-            return;
+
+        let filtered = allNotes;
+
+        // Apply color filter
+        if (currentColorFilter !== 'all') {
+            filtered = filtered.filter(note => (note.color || '#1e293b') === currentColorFilter);
         }
 
-        const filtered = allNotes.filter(note => {
-            const matchTitle = note.title.toLowerCase().includes(query);
-            const matchContent = (note.content || '').toLowerCase().includes(query);
-            return matchTitle || matchContent;
-        });
+        // Apply search query filter
+        if (query) {
+            filtered = filtered.filter(note => {
+                const matchTitle = note.title.toLowerCase().includes(query);
+                const matchContent = (note.content || '').toLowerCase().includes(query);
+                return matchTitle || matchContent;
+            });
+        }
 
         renderNotes(filtered);
     }
 
     searchInput.addEventListener('input', filterNotes);
+
+    // Color filter chip handlers
+    const colorFiltersContainer = document.getElementById('color-filters');
+    const colorFilterChips = colorFiltersContainer.querySelectorAll('.color-filter-chip');
+
+    colorFilterChips.forEach(chip => {
+        chip.addEventListener('click', () => {
+            const color = chip.getAttribute('data-color');
+            currentColorFilter = color;
+
+            // Update active state
+            colorFilterChips.forEach(c => c.classList.remove('active'));
+            chip.classList.add('active');
+
+            // Apply filter
+            filterNotes();
+        });
+    });
 
     // Helpers
     function formatDate(dateStr) {
@@ -411,7 +480,10 @@ document.addEventListener('DOMContentLoaded', () => {
     fetchNotes();
 
     // Start background polling loop for real-time DB synchronization (every 3 seconds)
-    setInterval(fetchNotes, 3000);
+    setInterval(() => {
+        if (document.hidden) return;  // skip polling when tab is not visible
+        fetchNotes();
+    }, 3000);
 
     // ---------- Chatbot ----------
     const chatToggle = document.getElementById('chat-toggle');
@@ -427,13 +499,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let chatHistory = [];
     let apiKeyConfigured = false;
+    let previousChatFocusedElement = null;
 
     function toggleChat() {
         chatPanel.classList.toggle('open');
         chatToggle.classList.toggle('hidden');
         if (chatPanel.classList.contains('open')) {
+            previousChatFocusedElement = document.activeElement;
             chatInput.focus();
             scrollChatToBottom();
+        } else {
+            if (previousChatFocusedElement) {
+                previousChatFocusedElement.focus();
+            }
         }
     }
 
@@ -451,6 +529,13 @@ document.addEventListener('DOMContentLoaded', () => {
     btnCloseChat.addEventListener('click', toggleChat);
     if (sidebarChatBtn) sidebarChatBtn.addEventListener('click', openChat);
 
+    // Escape key handler for chat panel
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && chatPanel.classList.contains('open')) {
+            toggleChat();
+        }
+    });
+
     function scrollChatToBottom() {
         chatMessages.scrollTop = chatMessages.scrollHeight;
     }
@@ -458,11 +543,49 @@ document.addEventListener('DOMContentLoaded', () => {
     function appendChatBubble(role, text) {
         const div = document.createElement('div');
         div.className = `chat-bubble ${role}`;
-        const safeText = escapeHTML(text).replace(/\n/g, '<br>');
-        div.innerHTML = `
-            <div class="chat-bubble-inner">${safeText}</div>
-            <span class="chat-time">${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-        `;
+
+        if (role === 'assistant') {
+            // Parse markdown and render as HTML
+            const renderedHTML = marked.parse(text);
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'chat-message-rendered';
+            contentDiv.innerHTML = renderedHTML;
+
+            // Create copy button
+            const copyBtn = document.createElement('button');
+            copyBtn.type = 'button';
+            copyBtn.className = 'chat-copy-btn';
+            copyBtn.title = 'Copy message';
+            copyBtn.innerHTML = '<i class="fa-solid fa-copy"></i>';
+            copyBtn.addEventListener('click', async () => {
+                try {
+                    await navigator.clipboard.writeText(text);
+                    const originalHTML = copyBtn.innerHTML;
+                    copyBtn.innerHTML = '<i class="fa-solid fa-check"></i>';
+                    copyBtn.style.opacity = '1';
+                    setTimeout(() => {
+                        copyBtn.innerHTML = originalHTML;
+                    }, 2000);
+                } catch (err) {
+                    console.error('Failed to copy:', err);
+                }
+            });
+
+            contentDiv.appendChild(copyBtn);
+            div.appendChild(contentDiv);
+        } else {
+            // User message - escape HTML, don't parse markdown
+            const safeText = escapeHTML(text).replace(/\n/g, '<br>');
+            div.innerHTML = `
+                <div class="chat-bubble-inner">${safeText}</div>
+            `;
+        }
+
+        const timeSpan = document.createElement('span');
+        timeSpan.className = 'chat-time';
+        timeSpan.textContent = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        div.appendChild(timeSpan);
+
         chatMessages.appendChild(div);
         scrollChatToBottom();
     }
@@ -540,14 +663,32 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="chat-welcome">
                         <i class="fa-solid fa-wand-magic-sparkles"></i>
                         <p>Ask me anything. I will help you and you can save our conversation as a note.</p>
+                        <div class="chat-suggestions">
+                            <button type="button" class="chat-suggestion-chip" data-prompt="What was I doing today?">What was I doing today?</button>
+                            <button type="button" class="chat-suggestion-chip" data-prompt="Summarize my notes">Summarize my notes</button>
+                            <button type="button" class="chat-suggestion-chip" data-prompt="What should I focus on?">What should I focus on?</button>
+                            <button type="button" class="chat-suggestion-chip" data-prompt="Top priorities">Top priorities</button>
+                        </div>
                     </div>
                 `;
+                attachSuggestionChipListeners();
             } else {
                 chatHistory.forEach(m => appendChatBubble(m.role, m.content));
             }
         } catch (err) {
             console.error('Error loading chat history:', err);
         }
+    }
+
+    function attachSuggestionChipListeners() {
+        const chips = chatMessages.querySelectorAll('.chat-suggestion-chip');
+        chips.forEach(chip => {
+            chip.addEventListener('click', () => {
+                const prompt = chip.getAttribute('data-prompt');
+                chatInput.value = prompt;
+                chatForm.dispatchEvent(new Event('submit'));
+            });
+        });
     }
 
     chatForm.addEventListener('submit', async (e) => {
@@ -595,8 +736,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="chat-welcome">
                     <i class="fa-solid fa-wand-magic-sparkles"></i>
                     <p>Ask me anything. I will help you and you can save our conversation as a note.</p>
+                    <div class="chat-suggestions">
+                        <button type="button" class="chat-suggestion-chip" data-prompt="What was I doing today?">What was I doing today?</button>
+                        <button type="button" class="chat-suggestion-chip" data-prompt="Summarize my notes">Summarize my notes</button>
+                        <button type="button" class="chat-suggestion-chip" data-prompt="What should I focus on?">What should I focus on?</button>
+                        <button type="button" class="chat-suggestion-chip" data-prompt="Top priorities">Top priorities</button>
+                    </div>
                 </div>
             `;
+            attachSuggestionChipListeners();
         } catch (err) {
             console.error('Error clearing chat:', err);
             showToast('Failed to clear chat history.', 'error');
@@ -626,4 +774,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Load chat history and check API key status on page load
     checkApiKey();
     loadChatHistory();
+
+    // Attach listeners to any existing suggestion chips (on initial page load)
+    setTimeout(() => {
+        attachSuggestionChipListeners();
+    }, 100);
 });

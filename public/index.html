@@ -11,6 +11,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
     <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Markdown Parser -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <!-- Stylesheet -->
     <link rel="stylesheet" href="style.css">
 </head>
@@ -112,6 +114,35 @@
                     <h2>All notes</h2>
                     <span id="visible-notes-count">0 shown</span>
                 </div>
+                <div class="color-filters" id="color-filters">
+                    <button type="button" class="color-filter-chip active" data-color="all" title="Show all notes">
+                        <span>All</span>
+                    </button>
+                    <button type="button" class="color-filter-chip" data-color="#1e293b" title="Slate">
+                        <div class="color-dot" style="background: #1e293b;"></div>
+                        <span>Slate</span>
+                    </button>
+                    <button type="button" class="color-filter-chip" data-color="#075e54" title="Emerald">
+                        <div class="color-dot" style="background: #075e54;"></div>
+                        <span>Emerald</span>
+                    </button>
+                    <button type="button" class="color-filter-chip" data-color="#0284c7" title="Ocean">
+                        <div class="color-dot" style="background: #0284c7;"></div>
+                        <span>Ocean</span>
+                    </button>
+                    <button type="button" class="color-filter-chip" data-color="#7c3aed" title="Amethyst">
+                        <div class="color-dot" style="background: #7c3aed;"></div>
+                        <span>Amethyst</span>
+                    </button>
+                    <button type="button" class="color-filter-chip" data-color="#b91c1c" title="Ruby">
+                        <div class="color-dot" style="background: #b91c1c;"></div>
+                        <span>Ruby</span>
+                    </button>
+                    <button type="button" class="color-filter-chip" data-color="#b45309" title="Amber">
+                        <div class="color-dot" style="background: #b45309;"></div>
+                        <span>Amber</span>
+                    </button>
+                </div>
                 <div class="notes-grid" id="notes-grid">
                     <div class="empty-state" id="empty-state">
                         <div class="empty-icon">
@@ -126,11 +157,11 @@
     </div>
 
     <!-- Edit Note Modal -->
-    <div id="edit-modal" class="modal-overlay">
+    <div id="edit-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="edit-modal-title">
         <div class="modal-content">
             <div class="modal-header">
-                <h2>Edit Note</h2>
-                <button type="button" class="btn-close-modal" id="btn-close-modal">
+                <h2 id="edit-modal-title">Edit Note</h2>
+                <button type="button" class="btn-close-modal" id="btn-close-modal" aria-label="Close edit modal">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
             </div>
@@ -184,20 +215,20 @@
     </div>
 
     <!-- Chatbot Panel -->
-    <div id="chat-panel" class="chat-panel">
+    <div id="chat-panel" class="chat-panel" role="dialog" aria-modal="true" aria-labelledby="chat-panel-title">
         <div class="chat-header">
             <div class="chat-brand">
                 <i class="fa-solid fa-robot"></i>
-                <span>AI Chat</span>
+                <span id="chat-panel-title">AI Chat</span>
             </div>
             <div class="chat-actions">
-                <button id="btn-save-chat" title="Save chat as note" class="chat-action-btn">
+                <button id="btn-save-chat" title="Save chat as note" class="chat-action-btn" aria-label="Save chat as note">
                     <i class="fa-regular fa-bookmark"></i>
                 </button>
-                <button id="btn-clear-chat" title="Clear chat" class="chat-action-btn">
+                <button id="btn-clear-chat" title="Clear chat" class="chat-action-btn" aria-label="Clear chat history">
                     <i class="fa-regular fa-trash-can"></i>
                 </button>
-                <button id="btn-close-chat" title="Close chat" class="chat-action-btn">
+                <button id="btn-close-chat" title="Close chat" class="chat-action-btn" aria-label="Close chat">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
             </div>
@@ -206,6 +237,12 @@
             <div class="chat-welcome">
                 <i class="fa-solid fa-wand-magic-sparkles"></i>
                 <p>Ask me anything. I will help you and you can save our conversation as a note.</p>
+                <div class="chat-suggestions">
+                    <button type="button" class="chat-suggestion-chip" data-prompt="What was I doing today?">What was I doing today?</button>
+                    <button type="button" class="chat-suggestion-chip" data-prompt="Summarize my notes">Summarize my notes</button>
+                    <button type="button" class="chat-suggestion-chip" data-prompt="What should I focus on?">What should I focus on?</button>
+                    <button type="button" class="chat-suggestion-chip" data-prompt="Top priorities">Top priorities</button>
+                </div>
             </div>
         </div>
 
@@ -228,7 +265,7 @@
     </div>
 
     <!-- Floating Chat Toggle -->
-    <button id="chat-toggle" class="chat-toggle" title="Open AI Chat">
+    <button id="chat-toggle" class="chat-toggle" title="Open AI Chat" aria-label="Open AI Chat">
         <i class="fa-solid fa-robot"></i>
     </button>
 

@@ -121,7 +121,8 @@ const chatLimiter = rateLimit({
 app.get('/api/notes', async (req, res) => {
   try {
     await ensureDatabase();
-    const result = await pool.query('SELECT * FROM notes ORDER BY created_at DESC');
+    // Safety cap of 500 notes to prevent unbounded growth. Pagination can be added later.
+    const result = await pool.query('SELECT * FROM notes ORDER BY created_at DESC LIMIT 500');
     res.json(result.rows);
   } catch (err) {
     console.error('Error fetching notes:', err.message);
