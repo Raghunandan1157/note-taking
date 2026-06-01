@@ -350,8 +350,19 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    const sidebarChatBtn = document.getElementById('sidebar-chat-btn');
+
+    function openChat() {
+        if (!chatPanel.classList.contains('open')) {
+            toggleChat();
+        } else {
+            chatInput.focus();
+        }
+    }
+
     chatToggle.addEventListener('click', toggleChat);
     btnCloseChat.addEventListener('click', toggleChat);
+    if (sidebarChatBtn) sidebarChatBtn.addEventListener('click', openChat);
 
     function scrollChatToBottom() {
         chatMessages.scrollTop = chatMessages.scrollHeight;
