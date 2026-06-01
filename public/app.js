@@ -6,6 +6,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const notesGrid = document.getElementById('notes-grid');
     const searchInput = document.getElementById('search-input');
     const totalNotesCount = document.getElementById('total-notes-count');
+    const visibleNotesCount = document.getElementById('visible-notes-count');
+    const lastSync = document.getElementById('last-sync');
     const emptyState = document.getElementById('empty-state');
 
     // Edit Modal Elements
@@ -23,6 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Fetch and display notes (used for initial load and real-time polling)
     async function fetchNotes() {
         try {
+            updateSyncStatus('syncing');
             const res = await fetch('/api/notes');
             if (!res.ok) throw new Error('Network response was not ok');
             
@@ -34,8 +37,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 filterNotes(); // Update UI with current search query applied
             }
             isFirstLoad = false;
+            updateSyncStatus('synced');
         } catch (err) {
             console.error('Error fetching notes:', err);
+            updateSyncStatus('error');
             
             // Only show major error card on the initial load to prevent disrupting the user
             if (isFirstLoad) {
@@ -60,9 +65,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Update stats
         totalNotesCount.textContent = allNotes.length;
+        visibleNotesCount.textContent = `${notesToRender.length} shown`;
 
         if (notesToRender.length === 0) {
             emptyState.style.display = 'flex';
+            const hasSearch = searchInput.value.trim().length > 0;
+            emptyState.querySelector('h3').textContent = hasSearch ? 'No matching notes' : 'No notes found';
+            emptyState.querySelector('p').textContent = hasSearch ? 'Try a different search term' : 'Create a note to start your workspace';
             return;
         }
 
@@ -168,7 +177,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             setTimeout(() => {
                 allNotes = allNotes.filter(note => note.id !== id);
-                renderNotes(allNotes);
+                filterNotes();
             }, 300);
 
         } catch (err) {
@@ -278,6 +287,28 @@ document.addEventListener('DOMContentLoaded', () => {
             hour: '2-digit',
             minute: '2-digit'
         });
+    }
+
+    function updateSyncStatus(state) {
+        if (!lastSync) return;
+
+        const icon = lastSync.querySelector('i');
+        const label = lastSync.querySelector('span');
+
+        if (state === 'syncing') {
+            icon.className = 'fa-solid fa-rotate';
+            label.textContent = 'Syncing';
+            return;
+        }
+
+        if (state === 'error') {
+            icon.className = 'fa-solid fa-triangle-exclamation';
+            label.textContent = 'Offline';
+            return;
+        }
+
+        icon.className = 'fa-solid fa-check';
+        label.textContent = 'Synced';
     }
 
     function escapeHTML(str) {
