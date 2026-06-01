@@ -18,26 +18,37 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnCancelEdit = document.getElementById('btn-cancel-edit');
 
     let allNotes = [];
+    let isFirstLoad = true;
 
-    // Fetch and display existing notes
+    // Fetch and display notes (used for initial load and real-time polling)
     async function fetchNotes() {
         try {
             const res = await fetch('/api/notes');
             if (!res.ok) throw new Error('Network response was not ok');
             
-            allNotes = await res.json();
-            renderNotes(allNotes);
+            const fetchedNotes = await res.json();
+            
+            // Perform deep comparison to avoid re-rendering and screen flicker if data is unchanged
+            if (JSON.stringify(fetchedNotes) !== JSON.stringify(allNotes)) {
+                allNotes = fetchedNotes;
+                filterNotes(); // Update UI with current search query applied
+            }
+            isFirstLoad = false;
         } catch (err) {
             console.error('Error fetching notes:', err);
-            notesGrid.innerHTML = `
-                <div class="empty-state">
-                    <div class="empty-icon" style="color: #ef4444;">
-                        <i class="fa-solid fa-circle-exclamation"></i>
+            
+            // Only show major error card on the initial load to prevent disrupting the user
+            if (isFirstLoad) {
+                notesGrid.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon" style="color: #ef4444;">
+                            <i class="fa-solid fa-circle-exclamation"></i>
+                        </div>
+                        <h3>Error loading notes</h3>
+                        <p>Failed to connect to the database. Make sure the server is running.</p>
                     </div>
-                    <h3>Error loading notes</h3>
-                    <p>Failed to connect to the database. Make sure the server is running.</p>
-                </div>
-            `;
+                `;
+            }
         }
     }
 
@@ -122,10 +133,18 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!res.ok) throw new Error('Failed to create note');
 
             const newNote = await res.json();
-            allNotes.unshift(newNote); // Add to the beginning of the local cache
+            allNotes.unshift(newNote); // Add to local cache instantly
             
-            // Automatically reload the page on saving new note
-            location.reload();
+            // Reset fields
+            noteTitle.value = '';
+            noteContent.value = '';
+            
+            // Reset checked color to slate
+            const defaultColorInput = document.querySelector('input[name="note-color"][value="#1e293b"]');
+            if (defaultColorInput) defaultColorInput.checked = true;
+
+            // Trigger search filter refresh and background sync
+            filterNotes();
         } catch (err) {
             console.error('Error creating note:', err);
             alert('Failed to save note. Please check server connection.');
@@ -215,8 +234,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const updatedNote = await res.json();
             
-            // Automatically reload the page on saving changes
-            location.reload();
+            // Update local state array
+            allNotes = allNotes.map(note => note.id === updatedNote.id ? updatedNote : note);
+            
+            // Close modal and refresh UI
+            closeEditModal();
+            filterNotes();
 
         } catch (err) {
             console.error('Error updating note:', err);
@@ -268,4 +291,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Initial fetch
     fetchNotes();
+
+    // Start background polling loop for real-time DB synchronization (every 3 seconds)
+    setInterval(fetchNotes, 3000);
 });
