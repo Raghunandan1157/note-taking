@@ -5,7 +5,11 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "nodemon server.js"
+    "dev:server": "nodemon server.js",
+    "dev:client": "npm run --prefix client dev",
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "build:client": "npm run --prefix client build",
+    "install:client": "npm install --prefix client"
   },
   "dependencies": {
     "dotenv": "^16.4.5",
@@ -17,6 +21,7 @@
     "node": ">=18.0.0"
   },
   "devDependencies": {
+    "concurrently": "^10.0.3",
     "nodemon": "^3.1.0"
   },
   "keywords": [],
